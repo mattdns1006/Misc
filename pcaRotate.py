@@ -81,7 +81,7 @@ def rotate(orig,mask,evs,centroid,scale= 1.0):
     angle = np.degrees(np.arctan2(evs[1][0],evs[0][0]))
     centroid = totuple(centroid)
     M = cv2.getRotationMatrix2D(centroid,-angle,1)
-    print("To be rotated by {0:.2f} about {1}".format(angle,centroid))
+    #print("To be rotated by {0:.2f} about {1}".format(angle,centroid))
     origDst = cv2.warpAffine(orig, M,(w,h),borderValue=0)
     maskDst = cv2.warpAffine(mask, M,(w,h),borderValue=0)
     return origDst,maskDst
