@@ -1,6 +1,6 @@
 function display(x,y,o,trainOrTest,zoom,freqSecs)
 	if imgDisplay == nil then 
-		local initPic = torch.range(1,torch.pow(100,2),1):reshape(100,100)
+		local initPic = torch.rand(100,200):reshape(100,200)
 		imgDisplay0 = image.display{image=initPic, zoom=zoom, offscreen=false}
 		imgDisplay1 = image.display{image=initPic, zoom=zoom, offscreen=false}
 		imgDisplay = 1 
@@ -17,8 +17,8 @@ function display(x,y,o,trainOrTest,zoom,freqSecs)
 		local o1Up = image.scale(o1:squeeze():double(),x1:size(3),x1:size(2)):resize(1,x1:size(2),x1:size(3)) -- upscale prediciton
 		local o1Up = o1Up:repeatTensor(3,1,1) -- repeat for rgb
 		local av = torch.add(o1Up,x1:double())/2 -- average prediction and input
-		local inter = torch.cmul(o1Up,x1:double())/2
-		local interAv = torch.cat(av,inter)
+		--local inter = torch.cmul(o1Up,x1:double())/2
+		local interAv = torch.cat(av,o1Up)
 
 		local title
 
