@@ -1,7 +1,7 @@
 import tensorflow as tf
 
-def weightVar(shape):
-    initial = tf.truncated_normal(shape, stddev=0.1)
+def weightVar(shape,stddev=0.1):
+    initial = tf.truncated_normal(shape, stddev=stddev)
     return tf.Variable(initial)
 
 def biasVar(shape):

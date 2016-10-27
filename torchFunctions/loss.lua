@@ -1,6 +1,6 @@
 require "gnuplot"
 
-local Loss = {}
+Loss = {}
 Loss.__index = Loss
 
 function Loss.new(movingAverage)
@@ -20,11 +20,13 @@ function Loss:add(loss)
 end
 
 function Loss:plot(fig)
-	assert(#self.movingAverage > 0,"Not enough observations to plot moving average.")
-	local losses = torch.Tensor(self.movingAverage)
-	gnuplot.figure(fig)
-	gnuplot.plot(losses)
+	if #self.movingAverage <= 1 then 
+	else
+		assert(#self.movingAverage > 0,"Not enough observations to plot moving average.")
+		local losses = torch.Tensor(self.movingAverage)
+		gnuplot.figure(fig)
+		gnuplot.plot(losses)
+	end
 end
 
-return Loss
 
