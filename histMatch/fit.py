@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-import os,glob
+import os,glob,cv2
 from tqdm import tqdm
 from scipy.interpolate import UnivariateSpline as spline
 from scipy.optimize import curve_fit 
@@ -18,6 +18,7 @@ def feeder(data,shuffle=False,pad=10):
     nPoints = 256
     X = np.arange(nPoints).astype(np.float32)
     X /= 255.0 
+
     # Pad X
     X = np.pad(X,[(pad,pad)],"linear_ramp",end_values=(-0.25,1.25))
 
@@ -26,7 +27,7 @@ def feeder(data,shuffle=False,pad=10):
         if type(data) == list: 
             n = len(data)
             c1, c2 = np.random.choice(n,2)
-            img1, img2 = cv2.imread(data[c1]),cv2.imread(data[c2])
+            img1, img2 = cv2.imread(data[c1])[:,:,::-1],cv2.imread(data[c2])[:,:,::-1]
         elif type(data) == np.ndarray:
             n = data.shape[0]
             c1, c2 = np.random.choice(n,2)
@@ -41,7 +42,7 @@ def feeder(data,shuffle=False,pad=10):
 
         x,y = [arr.astype(np.float32) for arr in [X,mappings]]
 
-	yield x,y
+	yield x,y, (img1,img2)
 
 def mse(yPred,y):
         '''
@@ -67,14 +68,13 @@ def fit(x,y):
         x[np.where(x<=0)] = 0.001
         x[np.where(x>=1)] = 1 - 0.001
         p0 = [0.4,0.4,0.13,0.52,0.03,0.00,1.2] # Initial value
-        ipdb.set_trace()
         coeffs, cov = curve_fit(tanh,x,y,p0=p0,maxfev=100000)
 
         model = lambda x: tanh(x,coeffs[0],coeffs[1],coeffs[2],coeffs[3],coeffs[4],coeffs[5],coeffs[6])
 
 	yPred = model(x)
 
-	return coeffs
+	return coeffs, yPred
 
 def fitAllChannels(x,YUV):
         '''
@@ -84,11 +84,18 @@ def fitAllChannels(x,YUV):
         '''
 
         coeffs = {} 
-        coeffs["Y"] = fit(x=x,y=YUV[0])
-        coeffs["U"] = fit(x=x,y=YUV[1])
-        coeffs["V"] = fit(x=x,y=YUV[2])
+        fitted = {}
+        coeffs["Y"],fitted["Y"] = fit(x=x,y=YUV[0])
+        coeffs["U"],fitted["U"] = fit(x=x,y=YUV[1])
+        coeffs["V"],fitted["V"] = fit(x=x,y=YUV[2])
 
-        return coeffs
+        return coeffs,fitted
+
+def augImage(img,coeffs):
+    '''
+    Given an image and a set of YUV cdf coefficients, generate new image via histogram matching
+    '''
+    pass
 
 if __name__ == "__main__":
 
@@ -102,8 +109,10 @@ if __name__ == "__main__":
 
         feed = feeder(X)
         for i in xrange(10):
-            x, y = feed.next()
-            coeffs = fitAllChannels(x,y)
+            x, y, imgs = feed.next()
+            ipdb.set_trace()
+            coeffs, fitted = fitAllChannels(x,y)
+
 
 
 
