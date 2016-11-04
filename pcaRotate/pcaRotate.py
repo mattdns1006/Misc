@@ -21,13 +21,14 @@ def totuple(a):
     except TypeError:
         return a
 
-def getRedYellow(r):
-    notRedOrYellow = (r[:,:,0] < 150) & (r[:,:,1] < 150) | (r[:,:,2] > 100)
+def getRedYellow(r,(thresh)):
+    notRedOrYellow = (r[:,:,0] < thresh[0]) & (r[:,:,1] < thresh[1]) | (r[:,:,2] > thresh[2])
     r[notRedOrYellow] = 0
     return r
 
-def getRed(r):
-    notRed = (r[:,:,0] < 150) | (r[:,:,1] > 100) | (r[:,:,2] > 100)
+def getRed(r,(thresh)):
+    red, green, blue = thresh
+    notRed = (r[:,:,0] < red) | (r[:,:,1] > green) | (r[:,:,2] > blue)
     r[notRed] = 0
     return r
 
