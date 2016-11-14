@@ -5,6 +5,7 @@ import glob
 from pylab import rcParams
 from scipy.ndimage import measurements
 import matplotlib.cm as cm
+from fitEllipse import fitEllipse
 
 def unit_vector(vector):
     return vector / np.linalg.norm(vector)
@@ -87,20 +88,51 @@ def rotate(orig,mask,evs,centroid,scale= 1.0):
     maskDst = cv2.warpAffine(mask, M,(w,h),borderValue=0)
     return origDst,maskDst
     
-def main(orig,mask,outputSize=(250,200)):
-    mask = getRedYellow(mask)
+def main(orig,mask,ellipseThresh = 20,redThresh = (0,60,250),outputWH =(150,100)):
+    h,w,c = orig.shape
+    mask = cv2.resize(mask,(w,h),interpolation = cv2.INTER_LINEAR)
+    mask = fitEllipse(mask,ellipseThresh,250)
     centroidR, covR = getImgMoments(mask,0)
     centroidG, covG = getImgMoments(mask,1)
     e1,e2 = evs = getEigenVectors(centroid1=centroidG,centroid2=centroidR,cov=covR)
+    orig, mask = rotate(orig,mask,evs,centroidR)
+    mask = getRed(mask,redThresh)
+    red = mask[:,:,0]
+    (minVal, maxVal, minLoc, maxLoc) = cv2.minMaxLoc(red)
+    oW, oH = outputWH
 
-    rotOrig, rotMask = rotate(orig,mask,evs,centroidR)
-    rotMask = getRed(rotMask)
+    x, y = xy = maxLoc - np.array([oW,oH])
 
-    centroidRotRed, _ = getImgMoments(rotMask,0) #Redo centroid to crop head 
-    w = np.array([outputSize[0],outputSize[1]])
-    topLeft = centroidRotRed - w
-    bottomRight = centroidRotRed + w
-    croppedHead = rotOrig[topLeft[1]:bottomRight[1],topLeft[0]:bottomRight[0]]
-    return croppedHead 
+    x, y = xy = np.max([x,0]), np.max([y,0])
+    x1,y1 = x1y1 = xy + 2*np.array([oW,oH])
+    if x1 > w:
+        x1 = w
+        x = w - oW*2
+    if y1 > h:
+        y1 = y
+        y = h - oH*2
 
+    croppedHead = orig[y:y1,x:x1]
+    return croppedHead, orig, mask
+
+if __name__ == "__main__":
+    import matplotlib.cm as cm
+    def show(img,gray=0):
+        if gray ==1:
+            plt.imshow(img,cmap=cm.gray)
+        else:
+            plt.imshow(img)
+
+        plt.show()
+    import ipdb
+    from random import shuffle
+    imgPaths = glob.glob("/home/msmith/kaggle/whale/imgs/test/m1*")
+    shuffle(imgPaths)
+    i = 0
+    while True:
+        f = imgPaths[i]
+        orig, mask = [cv2.imread(x)[:,:,::-1] for x in [f.replace("m1","w1"),f]]
+        croppedHead, origO, maskO = main(orig,mask)
+        c = raw_input("Press a key to continue..")
+        i += 1
 
