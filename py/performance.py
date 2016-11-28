@@ -2,10 +2,12 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-class performance():
+class Performance():
     def __init__(self,name="Performance"):
         self.epochLosses = []
         self.epochScores = []
+        self.epochLossesStd = []
+        self.epochScoresStd = []
         self.losses = []
         self.scores = []
         self.name = name
@@ -15,6 +17,8 @@ class performance():
     def endEpoch(self):
         self.epochLosses.append(np.array(self.losses).mean())
         self.epochScores.append(np.array(self.scores).mean())
+        self.epochLossesStd.append(np.array(self.losses).std())
+        self.epochScoresStd.append(np.array(self.scores).std())
         self.losses = []
         self.scores = []
 
@@ -51,10 +55,12 @@ class performance():
 
     def writeToCsv(self,name):
         assert name != None, "Please provide name"
-        df = pd.DataFrame(np.array([self.epochLosses,self.epochScores]).T)
-        df.columns = ["losses","scores"]
+        df = pd.DataFrame(np.array([self.epochLosses,self.epochLossesStd,self.epochScores,self.epochScoresStd]).T)
+        df.columns = ["losses mu","losses std","scores mu","scores std"]
         df.to_csv(name,index=0)
 
 
 if __name__ == "__main__":
     nEpochs = 10
+    import ipdb
+    perf = Performance()
