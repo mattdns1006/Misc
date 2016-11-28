@@ -2,7 +2,7 @@ import tensorflow as tf
 import numpy as np
 
 '''
-Only suitable for 3-dimensional tensors at the moment.
+Only suitable for 4-dimensional tensors (batch mode) at the moment.
 '''
 
 def dice(yPred,yTruth,threshold=0.5):
@@ -10,8 +10,8 @@ def dice(yPred,yTruth,threshold=0.5):
     threshold = tf.constant(threshold)
     yPredThresh = tf.to_float(tf.greater_equal(yPred,threshold))
     mul = tf.mul(yPredThresh,yTruth)
-    intersection = 2*tf.reduce_sum(mul, [0,1,2]) + smooth
-    union = tf.reduce_sum(yPredThresh, [0,1,2]) + tf.reduce_sum(yTruth, [0,1,2]) + smooth
+    intersection = 2*tf.reduce_sum(mul, [1,2,3]) + smooth
+    union = tf.reduce_sum(yPredThresh, [1,2,3]) + tf.reduce_sum(yTruth, [1,2,3]) + smooth
     dice = intersection/union
     return dice, yPredThresh
 
@@ -30,26 +30,54 @@ def diceROC(yPred,yTruth,thresholds=np.linspace(0.1,0.9,20)):
 
 if __name__ == "__main__":
     import ipdb
+    import cv2, glob, sys
+    import matplotlib.pyplot as plt
+    sys.path.append("../py/")
+    from hStackBatch import hStackBatch
+    def show(img):
+        img = hStackBatch(img)
+        plt.imshow(img)
+        plt.show()
+
+    bS = 5
+    Y_ = np.empty((bS,19,29,3))
+    YPred_ = Y_.copy()
+    sd = 1
+
+    paths = glob.glob("/home/msmith/kaggle/whale/imgs/whale_11099/m1_*.jpg")
+    for i in range(bS):
+        yPred_ = cv2.imread(paths[i])/255.0
+
+        Y_[i] = cv2.imread(paths[i])/255.0
+
+        r, c, col = yPred_.shape
+        rx = np.random.normal(0,sd)
+        ry = np.random.normal(0,sd)
+        M = np.float32([[1,0,rx],[0,1,ry]])
+        yPred_ = cv2.warpAffine(yPred_,M,(c,r))
+        YPred_[i] = yPred_
+
+
+    Y_[Y_>0.2] = 1.0
+    Y_[Y_<=0.2] = 0.0
+
     with tf.Session() as sess:
 
         nThreshs = 20
         thresh = 0.5
         print("Dice example")
-        yPred = tf.constant([0.1,0.9,0.7,0.3,0.1,0.1,0.9,0.9,0.1,
-                             0.1,0.9,0.7,0.3,0.1,0.1,0.9,0.9,0.1,
-                             0.1,0.9,0.7,0.3,0.1,0.1,0.9,0.9,0.1],shape=[3,3,3])
-        yTruth = tf.constant([0.0,1.0,1.0,0.0,0.0,0.0,1.0,1.0,1.0,
-                              0.0,1.0,1.0,0.0,0.0,0.0,1.0,1.0,1.0,
-                              0.0,1.0,1.0,0.0,0.0,0.0,1.0,1.0,1.0],shape=[3,3,3])
+        yPred = tf.placeholder(tf.float32,shape=[None,None,None,None])
+        yTruth = tf.placeholder(tf.float32,shape=[None,None,None,None])
 
         threshs = np.linspace(0.1,0.9,nThreshs)
         diceScore, _= dice(yPred=yPred,yTruth=yTruth,threshold=thresh)
         diceScoreROC = diceROC(yPred=yPred,yTruth=yTruth,thresholds=threshs)
 
-        diceScore_ = diceScore.eval()
-        diceScoreROC_ , yPred_, yTruth_ = sess.run([diceScoreROC, yPred, yTruth])
+        diceScoreROC_ , = sess.run([diceScoreROC],feed_dict={yPred:YPred_,yTruth:Y_})
+        print("\nScore = {0}".format(diceScoreROC_.mean(0)))
+        show(np.hstack((Y_,YPred_)))
 
-        ipdb.set_trace()
 
-        print("\nScore = {0}".format(diceScoreROC_))
+
+
 
