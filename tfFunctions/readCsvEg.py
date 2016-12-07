@@ -38,8 +38,8 @@ if __name__ == "__main__":
     # Define subgraph to take filename, read filename, decode and enqueue
     image_bytes = tf.read_file(path)
     decoded_img = tf.image.decode_jpeg(image_bytes)
-    imageQ = tf.FIFOQueue(128,[tf.uint8,tf.float32,tf.string])
-    #imageQ = tf.FIFOQueue(128,[tf.uint8,tf.float32], shapes = [[600,800,3],[1]])
+    #imageQ = tf.FIFOQueue(128,[tf.uint8,tf.float32,tf.string])
+    imageQ = tf.FIFOQueue(128,[tf.uint8,tf.float32], shapes = [[600,800,3],[1]])
     enQ_op = imageQ.enqueue([decoded_img,label,path])
 
     NUM_THREADS = 16
@@ -52,8 +52,8 @@ if __name__ == "__main__":
 
     tf.train.add_queue_runner(Q)
     bS = 4
-    #x,y = imageQ.dequeue_many(bS)
-    x,y,path = imageQ.dequeue()
+    x,y = imageQ.dequeue_many(bS)
+    #x,y,path = imageQ.dequeue()
 
 
     with tf.Session() as sess:
@@ -62,13 +62,10 @@ if __name__ == "__main__":
 
         count = 0
         ipdb.set_trace()
-        for i in range(3000):
-            x_, y_, path_ = sess.run([x,y,path])
-            if x_.shape != (600,800,3):
-                print(x_.shape,path_)
+        while not coord.should_stop():
+            x_, y_ = sess.run([x,y])
             count += x_.shape[0]
-            if i % 100 ==0:
-                print(count)
+            print(count)
             #show(x_,y_)
 
 
