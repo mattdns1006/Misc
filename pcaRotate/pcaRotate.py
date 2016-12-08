@@ -88,7 +88,7 @@ def rotate(orig,mask,evs,centroid,scale= 1.0):
     maskDst = cv2.warpAffine(mask, M,(w,h),borderValue=0)
     return origDst,maskDst
     
-def main(orig,mask,ellipseThresh = 20,redThresh = (0,60,250),outputWH =(150,100)):
+def main(orig,mask,ellipseThresh = 20,redThresh = (0,60,250),outputWH =(400,300)):
     h,w,c = orig.shape
     mask = cv2.resize(mask,(w,h),interpolation = cv2.INTER_LINEAR)
     mask = fitEllipse(mask,ellipseThresh,250)
@@ -105,6 +105,7 @@ def main(orig,mask,ellipseThresh = 20,redThresh = (0,60,250),outputWH =(150,100)
 
     x, y = xy = np.max([x,0]), np.max([y,0])
     x1,y1 = x1y1 = xy + 2*np.array([oW,oH])
+
     if x1 > w:
         x1 = w
         x = w - oW*2
@@ -117,6 +118,7 @@ def main(orig,mask,ellipseThresh = 20,redThresh = (0,60,250),outputWH =(150,100)
 
 if __name__ == "__main__":
     import matplotlib.cm as cm
+    import ipdb
     def show(img,gray=0):
         if gray ==1:
             plt.imshow(img,cmap=cm.gray)
@@ -126,13 +128,17 @@ if __name__ == "__main__":
         plt.show()
     import ipdb
     from random import shuffle
-    imgPaths = glob.glob("/home/msmith/kaggle/whale/imgs/test/m1*")
+    imgPaths = ["/home/msmith/kaggle/whale/imgs/whale_58972/m1_1542.jpg","/home/msmith/kaggle/whale/imgs/whale_58747/head_ss_3428.jpg"]
+    #imgPaths = glob.glob("/home/msmith/kaggle/whale/imgs/test/m1*")
     shuffle(imgPaths)
     i = 0
     while True:
         f = imgPaths[i]
         orig, mask = [cv2.imread(x)[:,:,::-1] for x in [f.replace("m1","w1"),f]]
+        ipdb.set_trace()
         croppedHead, origO, maskO = main(orig,mask)
-        c = raw_input("Press a key to continue..")
+
+        print(croppedHead.shape)
+        #c = raw_input("Press a key to continue..")
         i += 1
 
