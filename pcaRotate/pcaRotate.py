@@ -45,12 +45,17 @@ def getRed(r,(thresh)):
     r[notRed] = 0
     return r
 
-def getRedHSV(img,thresh=0.04):
+def getRedHSV(img,thresh=(0.04,0.04)):
+    Hthresh, Vthresh = thresh
     HSV = cv2.cvtColor(img,cv2.COLOR_RGB2HSV).astype(np.float32)
     H = HSV[:,:,0]
+    V = HSV[:,:,2]
     H /= 179.0 # cv2 values for HUE in 0, 179
-    H[H>thresh] = 0
-    return H
+    V /= 255.0 # cv2 values for Value in 0, 255
+    H[H>Hthresh] = 0
+    V[V<Vthresh] = 0
+    red = H*V
+    return red
 
 def getImgMoments(im,channel):
     img = im.copy()
@@ -115,15 +120,17 @@ def main(orig,mask,ellipseThresh = 20,redThresh = 0.04, cntThresh = 0.001, outpu
     centroidG, covG = getImgMoments(mask,1)
     e1,e2 = evs = getEigenVectors(centroid1=centroidG,centroid2=centroidR,cov=covR)
     orig, mask = rotate(orig,mask,evs,centroidR)
-    red = getRedHSV(mask,redThresh)
+
 
     enoughContours = False
     while enoughContours == False:
+        red = getRedHSV(mask,redThresh)
         ret, thresh = cv2.threshold(red,cntThresh,1,0)
         thresh = thresh.astype(np.uint8)
         contours, hierarchy = cv2.findContours(thresh,1,2)
         if len(contours) == 0:
-            cntThresh += 0.05
+            redThresh[0] += 0.01
+            redThresh[1] -= 0.01
             continue
         else: 
             enoughContours = True
