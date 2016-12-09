@@ -7,6 +7,18 @@ from scipy.ndimage import measurements
 import matplotlib.cm as cm
 from fitEllipse import fitEllipse
 
+def largestContour(contours):
+    largestArea = 0
+    largestIdx = 0
+    nCnts = len(contours)
+    for i in xrange(nCnts):
+        cnt = contours[i]
+        x,y,w,h = cv2.boundingRect(cnt)
+        if w*h > largestArea:
+            largestArea = w*h
+            largestIdx = i
+    return contours[largestIdx], largestIdx
+
 def unit_vector(vector):
     return vector / np.linalg.norm(vector)
 
@@ -32,6 +44,13 @@ def getRed(r,(thresh)):
     notRed = (r[:,:,0] < red) | (r[:,:,1] > green) | (r[:,:,2] > blue)
     r[notRed] = 0
     return r
+
+def getRedHSV(img,thresh=0.04):
+    HSV = cv2.cvtColor(img,cv2.COLOR_RGB2HSV).astype(np.float32)
+    H = HSV[:,:,0]
+    H /= 179.0 # cv2 values for HUE in 0, 179
+    H[H>thresh] = 0
+    return H
 
 def getImgMoments(im,channel):
     img = im.copy()
@@ -88,7 +107,7 @@ def rotate(orig,mask,evs,centroid,scale= 1.0):
     maskDst = cv2.warpAffine(mask, M,(w,h),borderValue=0)
     return origDst,maskDst
     
-def main(orig,mask,ellipseThresh = 20,redThresh = (0,60,250),outputWH =(400,300)):
+def main(orig,mask,ellipseThresh = 20,redThresh = 0.04, cntThresh = 0.001, outputWH =(400,300)):
     h,w,c = orig.shape
     mask = cv2.resize(mask,(w,h),interpolation = cv2.INTER_LINEAR)
     mask = fitEllipse(mask,ellipseThresh,250)
@@ -96,15 +115,36 @@ def main(orig,mask,ellipseThresh = 20,redThresh = (0,60,250),outputWH =(400,300)
     centroidG, covG = getImgMoments(mask,1)
     e1,e2 = evs = getEigenVectors(centroid1=centroidG,centroid2=centroidR,cov=covR)
     orig, mask = rotate(orig,mask,evs,centroidR)
-    mask = getRed(mask,redThresh)
-    red = mask[:,:,0]
-    (minVal, maxVal, minLoc, maxLoc) = cv2.minMaxLoc(red)
-    oW, oH = outputWH
+    red = getRedHSV(mask,redThresh)
 
-    x, y = xy = maxLoc - np.array([oW,oH])
+    enoughContours = False
+    while enoughContours == False:
+        ret, thresh = cv2.threshold(red,cntThresh,1,0)
+        thresh = thresh.astype(np.uint8)
+        contours, hierarchy = cv2.findContours(thresh,1,2)
+        if len(contours) == 0:
+            cntThresh += 0.05
+            continue
+        else: 
+            enoughContours = True
 
-    x, y = xy = np.max([x,0]), np.max([y,0])
-    x1,y1 = x1y1 = xy + 2*np.array([oW,oH])
+    largestCnt,_ = largestContour(contours)
+    x,y,dx,dy = cv2.boundingRect(largestCnt)
+    aspectRatio = 1.1
+    dx = int(dy*aspectRatio)
+    x1 = x + dx 
+    y1 = y + dy 
+
+    def mean():
+        M = cv2.moments(red)
+        maxLoc = (int(M["m10"]/M["m00"]), int(M["m01"]/M["m00"]))
+
+        oW, oH = outputWH
+
+        x, y = xy = maxLoc - np.array([oW,oH])
+
+        x, y = xy = np.max([x,0]), np.max([y,0])
+        x1,y1 = x1y1 = xy + 2*np.array([oW,oH])
 
     if x1 > w:
         x1 = w
@@ -114,7 +154,7 @@ def main(orig,mask,ellipseThresh = 20,redThresh = (0,60,250),outputWH =(400,300)
         y = h - oH*2
 
     croppedHead = orig[y:y1,x:x1]
-    return croppedHead, orig, mask
+    return croppedHead, orig, mask, red
 
 if __name__ == "__main__":
     import matplotlib.cm as cm
@@ -128,17 +168,16 @@ if __name__ == "__main__":
         plt.show()
     import ipdb
     from random import shuffle
-    imgPaths = ["/home/msmith/kaggle/whale/imgs/whale_58972/m1_1542.jpg","/home/msmith/kaggle/whale/imgs/whale_58747/head_ss_3428.jpg"]
+    imgPaths = ["/home/msmith/kaggle/whale/imgs/whale_58972/m1_1542.jpg","/home/msmith/kaggle/whale/imgs/whale_58747/m1_3428.jpg"]
     #imgPaths = glob.glob("/home/msmith/kaggle/whale/imgs/test/m1*")
     shuffle(imgPaths)
     i = 0
     while True:
         f = imgPaths[i]
         orig, mask = [cv2.imread(x)[:,:,::-1] for x in [f.replace("m1","w1"),f]]
-        ipdb.set_trace()
-        croppedHead, origO, maskO = main(orig,mask)
-
+        croppedHead, origO, maskO, red = main(orig,mask)
         print(croppedHead.shape)
+        ipdb.set_trace()
         #c = raw_input("Press a key to continue..")
         i += 1
 
