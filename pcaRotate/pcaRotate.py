@@ -112,7 +112,7 @@ def rotate(orig,mask,evs,centroid,scale= 1.0):
     maskDst = cv2.warpAffine(mask, M,(w,h),borderValue=0)
     return origDst,maskDst
     
-def main(orig,mask,ellipseThresh = 20,redThresh = 0.04, cntThresh = 0.001, outputWH =(400,300)):
+def main(orig,mask,ellipseThresh = 20,redThresh = 0.04, cntThresh = 0.001, pad = 20, aspectRatio = 1.4):
     h,w,c = orig.shape
     mask = cv2.resize(mask,(w,h),interpolation = cv2.INTER_LINEAR)
     mask = fitEllipse(mask,ellipseThresh,250)
@@ -137,28 +137,13 @@ def main(orig,mask,ellipseThresh = 20,redThresh = 0.04, cntThresh = 0.001, outpu
 
     largestCnt,_ = largestContour(contours)
     x,y,dx,dy = cv2.boundingRect(largestCnt)
-    aspectRatio = 1.1
+    x -= pad
+    y -= pad
+    dy *= 1.2
+    dy = int(dy)
     dx = int(dy*aspectRatio)
     x1 = x + dx 
     y1 = y + dy 
-
-    def mean():
-        M = cv2.moments(red)
-        maxLoc = (int(M["m10"]/M["m00"]), int(M["m01"]/M["m00"]))
-
-        oW, oH = outputWH
-
-        x, y = xy = maxLoc - np.array([oW,oH])
-
-        x, y = xy = np.max([x,0]), np.max([y,0])
-        x1,y1 = x1y1 = xy + 2*np.array([oW,oH])
-
-    if x1 > w:
-        x1 = w
-        x = w - oW*2
-    if y1 > h:
-        y1 = y
-        y = h - oH*2
 
     croppedHead = orig[y:y1,x:x1]
     return croppedHead, orig, mask, red
