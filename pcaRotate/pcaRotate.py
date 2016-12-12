@@ -112,7 +112,7 @@ def rotate(orig,mask,evs,centroid,scale= 1.0):
     maskDst = cv2.warpAffine(mask, M,(w,h),borderValue=0)
     return origDst,maskDst
     
-def main(orig,mask,ellipseThresh = 20,redThresh = 0.04, cntThresh = 0.001, pad = 20, aspectRatio = 1.4):
+def main(orig,mask,ellipseThresh = 20,redThresh = [0.04,0.2], cntThresh = 0.001, pad = 20, aspectRatio = 1.4):
     h,w,c = orig.shape
     mask = cv2.resize(mask,(w,h),interpolation = cv2.INTER_LINEAR)
     mask = fitEllipse(mask,ellipseThresh,250)
@@ -137,16 +137,17 @@ def main(orig,mask,ellipseThresh = 20,redThresh = 0.04, cntThresh = 0.001, pad =
 
     largestCnt,_ = largestContour(contours)
     x,y,dx,dy = cv2.boundingRect(largestCnt)
+
     x -= pad
     y -= pad
-    dy *= 1.2
+    dy *= 1.15
     dy = int(dy)
     dx = int(dy*aspectRatio)
     x1 = x + dx 
     y1 = y + dy 
-
+    cv2.rectangle(mask,(x,y),(x1,y1),(0,255,0),10)
     croppedHead = orig[y:y1,x:x1]
-    return croppedHead, orig, mask, red
+    return croppedHead, mask, red
 
 if __name__ == "__main__":
     import matplotlib.cm as cm
@@ -167,7 +168,7 @@ if __name__ == "__main__":
     while True:
         f = imgPaths[i]
         orig, mask = [cv2.imread(x)[:,:,::-1] for x in [f.replace("m1","w1"),f]]
-        croppedHead, origO, maskO, red = main(orig,mask)
+        croppedHead, origO, maskO, red = main(orig,mask,cntThresh=0.01)
         print(croppedHead.shape)
         ipdb.set_trace()
         #c = raw_input("Press a key to continue..")
