@@ -45,17 +45,14 @@ def getRed(r,(thresh)):
     r[notRed] = 0
     return r
 
-def getRedHSV(img,thresh=(0.04,0.04)):
-    Hthresh, Vthresh = thresh
+def getRedHSV(img,hThr=(0.04,0.96),vThr=(0.1)):
     HSV = cv2.cvtColor(img,cv2.COLOR_RGB2HSV).astype(np.float32)
     H = HSV[:,:,0]
     V = HSV[:,:,2]
     H /= 179.0 # cv2 values for HUE in 0, 179
     V /= 255.0 # cv2 values for Value in 0, 255
-    H[H>Hthresh] = 0
-    V[V<Vthresh] = 0
-    red = H*V
-    return red
+    r = ((H<hThr[0]) | (H>hThr[1])) & (V>vThr)
+    return r.astype(np.float32)
 
 def getImgMoments(im,channel):
     img = im.copy()
@@ -112,7 +109,7 @@ def rotate(orig,mask,evs,centroid,scale= 1.0):
     maskDst = cv2.warpAffine(mask, M,(w,h),borderValue=0)
     return origDst,maskDst
     
-def main(orig,mask,ellipseThresh = 20,redThresh = [0.04,0.2], cntThresh = 0.001, pad = 20, aspectRatio = 1.4):
+def main(orig,mask,ellipseThresh = 20,  hThr= [0.04,0.96], vThr=0.1, cntThresh = 0.001, pad = 20, aspectRatio = 1.4):
     h,w,c = orig.shape
     mask = cv2.resize(mask,(w,h),interpolation = cv2.INTER_LINEAR)
     mask = fitEllipse(mask,ellipseThresh,250)
@@ -121,33 +118,51 @@ def main(orig,mask,ellipseThresh = 20,redThresh = [0.04,0.2], cntThresh = 0.001,
     e1,e2 = evs = getEigenVectors(centroid1=centroidG,centroid2=centroidR,cov=covR)
     orig, mask = rotate(orig,mask,evs,centroidR)
 
-
     enoughContours = False
+
+    
+    countTry = 0 # number of attempts to get contours
+    fail = 0
     while enoughContours == False:
-        red = getRedHSV(mask,redThresh)
-        ret, thresh = cv2.threshold(red,cntThresh,1,0)
+        red = getRedHSV(mask,hThr,vThr)
+        if countTry > 5:
+            fail = 1
+            return None, None, None, None, fail
+        redC = red.copy()
+        ret, thresh = cv2.threshold(redC,cntThresh,1,cv2.THRESH_BINARY)
         thresh = thresh.astype(np.uint8)
-        contours, hierarchy = cv2.findContours(thresh,1,2)
-        if len(contours) == 0:
-            redThresh[0] += 0.01
-            redThresh[1] -= 0.01
+        threshC = thresh.copy()
+        contours, hierarchy = cv2.findContours(threshC,1,2)
+        if len(contours) == 0 : # if we have no contours change thresholding
+            hThr[0] += 0.001
+            hThr[1] -= 0.001
+            vThr -= 0.001
+            countTry += 1
             continue
         else: 
             enoughContours = True
+            break
+
 
     largestCnt,_ = largestContour(contours)
     x,y,dx,dy = cv2.boundingRect(largestCnt)
+    if dx*dy < 5000:
+        # rubbish area size, quit
+        fail = 2
+        return None, None, None, None, fail
 
-    x -= pad
-    y -= pad
-    dy *= 1.15
-    dy = int(dy)
-    dx = int(dy*aspectRatio)
+    x-= pad
+    y-= pad
+    dx += 2*pad
+    dy += 2*pad
+
     x1 = x + dx 
     y1 = y + dy 
-    cv2.rectangle(mask,(x,y),(x1,y1),(0,255,0),10)
+    #cv2.rectangle(mask,(x,y),(x1,y1),(0,255,0),30)
+    #cv2.rectangle(red,(x,y),(x1,y1),255,10)
+    #cv2.rectangle(thresh,(x,y),(x1,y1),255,10)
     croppedHead = orig[y:y1,x:x1]
-    return croppedHead, mask, red
+    return croppedHead, mask, red, thresh, fail
 
 if __name__ == "__main__":
     import matplotlib.cm as cm
