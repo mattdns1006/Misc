@@ -109,7 +109,7 @@ def rotate(orig,mask,evs,centroid,scale= 1.0):
     maskDst = cv2.warpAffine(mask, M,(w,h),borderValue=0)
     return origDst,maskDst
     
-def main(orig,mask,ellipseThresh = 20,  hThr= [0.04,0.96], vThr=0.1, cntThresh = 0.001, pad = 20, aspectRatio = 1.4):
+def main(orig,mask,ellipseThresh = 20,  hThr= [0.04,0.96], vThr=0.1, cntThresh = 0.001, pad = 20, outSize = 500):
     h,w,c = orig.shape
     mask = cv2.resize(mask,(w,h),interpolation = cv2.INTER_LINEAR)
     mask = fitEllipse(mask,ellipseThresh,250)
@@ -119,8 +119,6 @@ def main(orig,mask,ellipseThresh = 20,  hThr= [0.04,0.96], vThr=0.1, cntThresh =
     orig, mask = rotate(orig,mask,evs,centroidR)
 
     enoughContours = False
-
-    
     countTry = 0 # number of attempts to get contours
     fail = 0
     while enoughContours == False:
@@ -143,14 +141,19 @@ def main(orig,mask,ellipseThresh = 20,  hThr= [0.04,0.96], vThr=0.1, cntThresh =
             enoughContours = True
             break
 
-
     largestCnt,_ = largestContour(contours)
     x,y,dx,dy = cv2.boundingRect(largestCnt)
-    if dx*dy < 5000:
+    if dx*dy < 10000:
         # rubbish area size, quit
         fail = 2
         return None, None, None, None, fail
 
+    if dx < dy:
+        dx*= float(dy)/dx 
+    elif dx > dy:
+        dy*= float(dx)/dy
+    dx = int(dx)
+    dy = int(dy)
     x-= pad
     y-= pad
     dx += 2*pad
@@ -158,6 +161,7 @@ def main(orig,mask,ellipseThresh = 20,  hThr= [0.04,0.96], vThr=0.1, cntThresh =
 
     x1 = x + dx 
     y1 = y + dy 
+
     #cv2.rectangle(mask,(x,y),(x1,y1),(0,255,0),30)
     #cv2.rectangle(red,(x,y),(x1,y1),255,10)
     #cv2.rectangle(thresh,(x,y),(x1,y1),255,10)
