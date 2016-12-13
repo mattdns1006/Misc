@@ -113,6 +113,7 @@ def main(orig,mask,ellipseThresh = 20,  hThr= [0.04,0.96], vThr=0.1, cntThresh =
     h,w,c = orig.shape
     mask = cv2.resize(mask,(w,h),interpolation = cv2.INTER_LINEAR)
     mask = fitEllipse(mask,ellipseThresh,250)
+    maskEll = mask.copy()
     centroidR, covR = getImgMoments(mask,0)
     centroidG, covG = getImgMoments(mask,1)
     e1,e2 = evs = getEigenVectors(centroid1=centroidG,centroid2=centroidR,cov=covR)
@@ -125,7 +126,7 @@ def main(orig,mask,ellipseThresh = 20,  hThr= [0.04,0.96], vThr=0.1, cntThresh =
         red = getRedHSV(mask,hThr,vThr)
         if countTry > 5:
             fail = 1
-            return None, None, None, None, fail
+            return None, None, None, None, None, None, fail
         redC = red.copy()
         ret, thresh = cv2.threshold(redC,cntThresh,1,cv2.THRESH_BINARY)
         thresh = thresh.astype(np.uint8)
@@ -146,7 +147,7 @@ def main(orig,mask,ellipseThresh = 20,  hThr= [0.04,0.96], vThr=0.1, cntThresh =
     if dx*dy < 10000:
         # rubbish area size, quit
         fail = 2
-        return None, None, None, None, fail
+        return None, None, None, None, None, None, fail
 
     if dx < dy:
         dx*= float(dy)/dx 
@@ -154,6 +155,7 @@ def main(orig,mask,ellipseThresh = 20,  hThr= [0.04,0.96], vThr=0.1, cntThresh =
         dy*= float(dx)/dy
     dx = int(dx)
     dy = int(dy)
+
     x-= pad
     y-= pad
     dx += 2*pad
@@ -166,7 +168,10 @@ def main(orig,mask,ellipseThresh = 20,  hThr= [0.04,0.96], vThr=0.1, cntThresh =
     #cv2.rectangle(red,(x,y),(x1,y1),255,10)
     #cv2.rectangle(thresh,(x,y),(x1,y1),255,10)
     croppedHead = orig[y:y1,x:x1]
-    return croppedHead, mask, red, thresh, fail
+    if croppedHead.size == 0:
+        fail = 3
+        return None, None, None, None, None, None, fail
+    return croppedHead, mask, red, thresh, orig, maskEll, fail
 
 if __name__ == "__main__":
     import matplotlib.cm as cm
