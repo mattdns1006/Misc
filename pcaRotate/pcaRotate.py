@@ -118,7 +118,7 @@ def main(orig, mask, ellipseThresh = 8,  hThr= [0.06,0.95], vThr=0.1, cntThresh 
     while enoughRed == False:
         if countTry > 5:
             fail = 4
-            return None, None, None, None, None, None, fail
+            return None, None, fail
         maskC = mask.copy()
         maskC = fitEllipse(maskC,ellipseThresh,250)
         redSoFar = getRedHSV(maskC,hThr,vThr)
@@ -128,7 +128,6 @@ def main(orig, mask, ellipseThresh = 8,  hThr= [0.06,0.95], vThr=0.1, cntThresh 
             countTry += 1
             ellipseThresh += 10 # change threshold to account in case we are removing red
     mask = maskC
-    maskEll = mask.copy()
 
     centroidR, covR = getImgMoments(mask,0)
     centroidG, covG = getImgMoments(mask,1)
@@ -142,9 +141,8 @@ def main(orig, mask, ellipseThresh = 8,  hThr= [0.06,0.95], vThr=0.1, cntThresh 
         red = getRedHSV(mask,hThr,vThr)
         if countTry > 5:
             fail = 1
-            return None, mask, None, None, None, maskEll, fail
-        redC = red.copy()
-        ret, thresh = cv2.threshold(redC,cntThresh,1,cv2.THRESH_BINARY)
+            return None, mask, fail
+        ret, thresh = cv2.threshold(red,cntThresh,1,cv2.THRESH_BINARY)
         thresh = thresh.astype(np.uint8)
         threshC = thresh.copy()
         contours, hierarchy = cv2.findContours(threshC,1,2)
@@ -163,7 +161,7 @@ def main(orig, mask, ellipseThresh = 8,  hThr= [0.06,0.95], vThr=0.1, cntThresh 
     if dx*dy < 10000:
         # rubbish area size, quit
         fail = 2
-        return None, mask, None, None, None, maskEll, fail
+        return None, maskEll, fail
 
     if dx < dy:
         dx*= float(dy)/dx 
@@ -186,8 +184,8 @@ def main(orig, mask, ellipseThresh = 8,  hThr= [0.06,0.95], vThr=0.1, cntThresh 
     croppedHead = orig[y:y1,x:x1]
     if croppedHead.size == 0:
         fail = 3
-        return None, mask, None, None, None, None, fail
-    return croppedHead, mask, red, thresh, orig, maskEll, fail
+        return None, mask, fail
+    return croppedHead, mask, fail
 
 if __name__ == "__main__":
     import matplotlib.cm as cm
@@ -214,7 +212,7 @@ if __name__ == "__main__":
         f = imgPaths[i][0].replace("head_","m1_")
         ipdb.set_trace()
         orig, mask = [cv2.imread(x)[:,:,::-1] for x in [f.replace("m1","w1"),f]]
-        croppedHead, mask, red, thresh, orig, maskEll, fail = main(orig,mask)
+        croppedHead, mask, fail = main(orig,mask)
         ipdb.set_trace()
         #c = raw_input("Press a key to continue..")
         i += 1
