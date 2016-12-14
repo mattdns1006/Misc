@@ -163,20 +163,26 @@ def main(orig, mask, ellipseThresh = 8,  hThr= [0.06,0.95], vThr=0.1, cntThresh 
         fail = 2
         return None, maskEll, fail
 
+    dx1 = dy1 = None
     if dx < dy:
-        dx*= float(dy)/dx 
+        dx1 = dy
+        dy1 = dy
+        x-= int(0.5*(dx1-dx))
     elif dx > dy:
-        dy*= float(dx)/dy
-    dx = int(dx)
-    dy = int(dy)
+        dy1= dx
+        dx1 = dx
+        y-= int(0.5*(dy1-dy))
+    else:
+        dx1 = dx
+        dy1 = dy
 
     x-= pad
     y-= pad
-    dx += 2*pad
-    dy += 2*pad
+    dx1 = dx1+ 2*pad
+    dy1 = dy1+ 2*pad
 
-    x1 = x + dx 
-    y1 = y + dy 
+    x1 = x + dx1
+    y1 = y + dy1
 
     #cv2.rectangle(mask,(x,y),(x1,y1),(0,255,0),30)
     #cv2.rectangle(red,(x,y),(x1,y1),255,10)
