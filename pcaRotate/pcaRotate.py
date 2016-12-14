@@ -109,11 +109,27 @@ def rotate(orig,mask,evs,centroid,scale= 1.0):
     maskDst = cv2.warpAffine(mask, M,(w,h),borderValue=0)
     return origDst,maskDst
     
-def main(orig,mask,ellipseThresh = 20,  hThr= [0.04,0.96], vThr=0.1, cntThresh = 0.001, pad = 20, outSize = 500):
+def main(orig, mask, ellipseThresh = 8,  hThr= [0.06,0.95], vThr=0.1, cntThresh = 0.000001, pad = 20, outSize = 500):
     h,w,c = orig.shape
     mask = cv2.resize(mask,(w,h),interpolation = cv2.INTER_LINEAR)
-    mask = fitEllipse(mask,ellipseThresh,250)
+
+    enoughRed = False
+    countTry = 0 # number of attempts to get some red
+    while enoughRed == False:
+        if countTry > 5:
+            fail = 4
+            return None, None, None, None, None, None, fail
+        maskC = mask.copy()
+        maskC = fitEllipse(maskC,ellipseThresh,250)
+        redSoFar = getRedHSV(maskC,hThr,vThr)
+        if redSoFar.max() > 0.0: # make sure we have some red (i.e. whale head in photo)
+            break
+        else:
+            countTry += 1
+            ellipseThresh += 10 # change threshold to account in case we are removing red
+    mask = maskC
     maskEll = mask.copy()
+
     centroidR, covR = getImgMoments(mask,0)
     centroidG, covG = getImgMoments(mask,1)
     e1,e2 = evs = getEigenVectors(centroid1=centroidG,centroid2=centroidR,cov=covR)
@@ -126,7 +142,7 @@ def main(orig,mask,ellipseThresh = 20,  hThr= [0.04,0.96], vThr=0.1, cntThresh =
         red = getRedHSV(mask,hThr,vThr)
         if countTry > 5:
             fail = 1
-            return None, None, None, None, None, None, fail
+            return None, mask, None, None, None, maskEll, fail
         redC = red.copy()
         ret, thresh = cv2.threshold(redC,cntThresh,1,cv2.THRESH_BINARY)
         thresh = thresh.astype(np.uint8)
@@ -147,7 +163,7 @@ def main(orig,mask,ellipseThresh = 20,  hThr= [0.04,0.96], vThr=0.1, cntThresh =
     if dx*dy < 10000:
         # rubbish area size, quit
         fail = 2
-        return None, None, None, None, None, None, fail
+        return None, mask, None, None, None, maskEll, fail
 
     if dx < dy:
         dx*= float(dy)/dx 
@@ -170,12 +186,15 @@ def main(orig,mask,ellipseThresh = 20,  hThr= [0.04,0.96], vThr=0.1, cntThresh =
     croppedHead = orig[y:y1,x:x1]
     if croppedHead.size == 0:
         fail = 3
-        return None, None, None, None, None, None, fail
+        return None, mask, None, None, None, None, fail
     return croppedHead, mask, red, thresh, orig, maskEll, fail
 
 if __name__ == "__main__":
     import matplotlib.cm as cm
-    import ipdb
+    import ipdb, sys, os
+    import pickle
+    if len(sys.argv) > 1:
+        path = sys.argv[1]
     def show(img,gray=0):
         if gray ==1:
             plt.imshow(img,cmap=cm.gray)
@@ -183,17 +202,19 @@ if __name__ == "__main__":
             plt.imshow(img)
 
         plt.show()
-    import ipdb
-    from random import shuffle
-    imgPaths = ["/home/msmith/kaggle/whale/imgs/whale_58972/m1_1542.jpg","/home/msmith/kaggle/whale/imgs/whale_58747/m1_3428.jpg"]
+    #imgPaths = ["/home/msmith/kaggle/whale/imgs/whale_58972/m1_1542.jpg","/home/msmith/kaggle/whale/imgs/whale_58747/m1_3428.jpg"]
     #imgPaths = glob.glob("/home/msmith/kaggle/whale/imgs/test/m1*")
-    shuffle(imgPaths)
+    failListPath = "/home/msmith/kaggle/whale/locator/imgCropFails.txt"
+    if os.path.exists(failListPath):
+        with open(failListPath,'rb') as fp:
+            imgPaths=pickle.load(fp)
     i = 0
+
     while True:
-        f = imgPaths[i]
+        f = imgPaths[i][0].replace("head_","m1_")
+        ipdb.set_trace()
         orig, mask = [cv2.imread(x)[:,:,::-1] for x in [f.replace("m1","w1"),f]]
-        croppedHead, origO, maskO, red = main(orig,mask,cntThresh=0.01)
-        print(croppedHead.shape)
+        croppedHead, mask, red, thresh, orig, maskEll, fail = main(orig,mask)
         ipdb.set_trace()
         #c = raw_input("Press a key to continue..")
         i += 1
