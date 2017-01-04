@@ -115,18 +115,21 @@ def main(orig, mask, ellipseThresh = 8,  hThr= [0.06,0.95], vThr=0.1, cntThresh 
 
     enoughRed = False
     countTry = 0 # number of attempts to get some red
+    if __name__ == "__main__":
+        ipdb.set_trace()
     while enoughRed == False:
         if countTry > 5:
             fail = 4
             return None, None, fail
         maskC = mask.copy()
-        maskC = fitEllipse(maskC,ellipseThresh,250)
+        if countTry < 2:
+            maskC = fitEllipse(maskC,ellipseThresh,250)
         redSoFar = getRedHSV(maskC,hThr,vThr)
         if redSoFar.max() > 0.0: # make sure we have some red (i.e. whale head in photo)
             break
         else:
             countTry += 1
-            ellipseThresh += 10 # change threshold to account in case we are removing red
+            ellipseThresh += 1 # change threshold to account in case we are removing red
     mask = maskC
 
     centroidR, covR = getImgMoments(mask,0)
@@ -158,10 +161,10 @@ def main(orig, mask, ellipseThresh = 8,  hThr= [0.06,0.95], vThr=0.1, cntThresh 
 
     largestCnt,_ = largestContour(contours)
     x,y,dx,dy = cv2.boundingRect(largestCnt)
-    if dx*dy < 10000:
+    if dx*dy < 7500:
         # rubbish area size, quit
         fail = 2
-        return None, maskEll, fail
+        return None, mask, fail
 
     dx1 = dy1 = None
     if dx < dy:
@@ -206,20 +209,21 @@ if __name__ == "__main__":
             plt.imshow(img)
 
         plt.show()
-    #imgPaths = ["/home/msmith/kaggle/whale/imgs/whale_58972/m1_1542.jpg","/home/msmith/kaggle/whale/imgs/whale_58747/m1_3428.jpg"]
-    #imgPaths = glob.glob("/home/msmith/kaggle/whale/imgs/test/m1*")
     failListPath = "/home/msmith/kaggle/whale/locator/imgCropFails.txt"
     if os.path.exists(failListPath):
         with open(failListPath,'rb') as fp:
             imgPaths=pickle.load(fp)
-    i = 0
+    print(len(imgPaths))
+    ipdb.set_trace()
+    i = 1
 
     while True:
-        f = imgPaths[i][0].replace("head_","m1_")
+        mp = imgPaths[i][0]
+        op = mp.replace("m1_","w1_")
+        orig, mask = [cv2.imread(x)[:,:,::-1] for x in [op,mp]]
+        croppedHead, mask, fail = main(orig,mask,ellipseThresh=2)
         ipdb.set_trace()
-        orig, mask = [cv2.imread(x)[:,:,::-1] for x in [f.replace("m1","w1"),f]]
-        croppedHead, mask, fail = main(orig,mask)
-        ipdb.set_trace()
+        print(fail)
         #c = raw_input("Press a key to continue..")
         i += 1
 
