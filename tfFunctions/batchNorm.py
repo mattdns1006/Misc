@@ -1,7 +1,7 @@
 import tensorflow as tf  
 from tensorflow.python.training import moving_averages
 
-def batch_norm(x,training,name="bn"):
+def batch_norm(x,training,decay=0.9,name="bn"):
     """Batch normalization."""
     with tf.variable_scope(name):
       params_shape = [x.get_shape()[-1]]
@@ -26,8 +26,8 @@ def batch_norm(x,training,name="bn"):
             initializer=tf.constant_initializer(1.0, tf.float32),
             trainable=False)
 
-        moving_averages.assign_moving_average( moving_mean, mean, 0.9)
-        moving_averages.assign_moving_average( moving_variance, variance, 0.9)
+        moving_mean = moving_averages.assign_moving_average( moving_mean, mean, decay)
+        moving_variance = moving_averages.assign_moving_average( moving_variance, variance, decay)
       else:
         mean = tf.get_variable(
             'moving_mean', params_shape, tf.float32,
