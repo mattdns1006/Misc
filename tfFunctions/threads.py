@@ -1,43 +1,73 @@
-import glob
+import os,sys
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from PIL import Image
 from tqdm import tqdm
+import cv2
 import tensorflow as tf
-import time
+sys.path.insert(0,"/home/msmith/misc/py/")
+import aug # Augmentation
+import numpy as np
+import pandas as pd
 
-imgPaths = glob.glob("/home/msmith/kaggle/whale/imgs/*/w1_*") # Some images
+def threadDequeue(nThreads,paths):
+    filenameQ = tf.train.string_input_producer(paths)
 
-filenameQ = tf.train.string_input_producer(imgPaths)
+    filename = filenameQ.dequeue()
+    imageBytes = tf.read_file(filename)
+    decodedImg = tf.image.decode_jpeg(imageBytes)
+    imageQ = tf.FIFOQueue(128, [tf.uint8,tf.string], None)
+    enqueueOp = imageQ.enqueue([decodedImg,filename])
 
-# Define a subgraph that takes a filename, reads the file, decodes it, and                                                                                     
-# enqueues it.                                                                                                                                                 
-filename = filenameQ.dequeue()
-image_bytes = tf.read_file(filename)
-decoded_image = tf.image.decode_jpeg(image_bytes)
-image_queue = tf.FIFOQueue(128, [tf.uint8], None)
-enqueue_op = image_queue.enqueue(decoded_image)
+    # Q runner
+    queueRunner = tf.train.QueueRunner(
+            imageQ,
+            [enqueueOp] * nThreads,
+            imageQ.close(),
+            imageQ.close(cancel_pending_enqueues=True))
 
-# Create a queue runner that will enqueue decoded images into `image_queue`.                                                                                   
-NUM_THREADS = 16
-queue_runner = tf.train.QueueRunner(
-    image_queue,
-    [enqueue_op] * NUM_THREADS,  # Each element will be run from a separate thread.                                                                                       
-    image_queue.close(),
-    image_queue.close(cancel_pending_enqueues=True))
+    tf.train.add_queue_runner(queueRunner)
 
-# Ensure that the queue runner threads are started when we call                                                                                               
-# `tf.train.start_queue_runners()` below.                                                                                                                      
-tf.train.add_queue_runner(queue_runner)
+    img,fname = imageQ.dequeue()
+    return img, fname
 
-# Dequeue the next image from the queue, for returning to the client.                                                                                          
-img = image_queue.dequeue()
+def show(img,filename):
+    plt.imshow(img)
+    plt.title(filename)
+    plt.show()
 
-init_op = tf.initialize_all_variables()
+if __name__ == "__main__":
+    import matplotlib.pyplot as plt
+    import ipdb, glob
 
-start = time.time()
-with tf.Session() as sess:
-    sess.run(init_op)
-    coord = tf.train.Coordinator()
-    threads = tf.train.start_queue_runners(sess=sess, coord=coord)
-    for i in tqdm(range(500)):
-        img.eval().mean()
-    dt = int((time.time()-start)*1000)
-    print("Time = {0}".format(dt))
+    from tqdm import tqdm
+    csv = pd.read_csv("../trainCV.csv")
+    ipdb.set_trace()
+    paths = glob.glob("../imgs/whale_33195*/head_ss_*")
+
+    init_op = tf.initialize_all_variables()
+    with tf.Session() as sess:
+
+        sess.run(init_op)
+        img,fname = threadDequeue(12,paths)
+        coord = tf.train.Coordinator()
+        threads = tf.train.start_queue_runners(sess=sess,coord=coord)
+
+        count = 0
+        try: 
+            while not coord.should_stop(): 
+
+                img_,fn_ = sess.run([img,fname])
+                print(count)
+                count +=1
+                #ipdb.set_trace()
+                #show(img_,fn_)
+        except tf.errors.OutOfRangeError:
+            print("Done training")
+        finally:
+            coord.request_stop()
+
+        coord.join(threads)
+        sess.close()
+
