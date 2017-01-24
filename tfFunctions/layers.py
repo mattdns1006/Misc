@@ -20,10 +20,24 @@ def deconv2d(x,W,outputShape,stride):
 def linear(x,W,b):
     return tf.matmul(x,W) + b
 
-def bn(shape, input):
-    eps = 1e-5
-    weight_variable = lambda shape: tf.Variable(tf.truncated_normal(shape,stddev=0.1))
-    gamma = weight_variable([shape])
-    beta = weight_variable([shape])
-    mean, variance = tf.nn.moments(input, [0])
-    return gamma * (input - mean) / tf.sqrt(variance + eps) + beta
+def avgp(x,kSize,stride):
+    return tf.nn.avg_pool(x,[1,kSize,kSize,1],strides=[1,stride,stride,1],padding = "VALID")
+
+if __name__ == "__main__":
+    import numpy as np
+    np.set_printoptions(linewidth=100,precision=3)
+    import pdb
+    X = tf.placeholder(tf.float32,[1,7,7,1])
+    Y = avgp(X,7,1)
+    with tf.Session() as sess:
+        tf.initialize_all_variables().run()
+        for i in xrange(10):
+            x = np.random.random((1,7,7,1))
+            y = Y.eval(feed_dict={X:x})
+            x = x.squeeze()
+            y = y.squeeze()
+            print(x)
+            print("\n")
+            print(y)
+            pdb.set_trace()
+

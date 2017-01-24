@@ -13,7 +13,7 @@ def dice(yPred,yTruth,threshold=0.5):
     intersection = 2*tf.reduce_sum(mul, [1,2,3]) + smooth
     union = tf.reduce_sum(yPredThresh, [1,2,3]) + tf.reduce_sum(yTruth, [1,2,3]) + smooth
     dice = intersection/union
-    return dice, yPredThresh
+    return dice
 
 def diceROC(yPred,yTruth,thresholds=np.linspace(0.1,0.9,20)):
     thresholds = thresholds.astype(np.float32)
