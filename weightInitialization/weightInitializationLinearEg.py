@@ -90,7 +90,7 @@ if __name__ == "__main__":
                 variable_summaries(loss)
             trainer = tf.train.AdamOptimizer(learning_rate).minimize(loss)
             merged = tf.summary.merge_all()
-            path = "weightInitialization/"
+            path = "weightInitialization/linear/"
             if not os.path.exists(path):
                 os.mkdir(path)
                 print("Made {0}.".format(path))
