@@ -8,10 +8,11 @@ def paramCount():
         for dim in shape:
             varParams *= dim.value
         total += varParams
-    print("Total number of trainable parameters in session ==> {0}.".format(total))
+    print("Total number of trainable parameters in session ==> {0:,}.".format(total))
 
 if __name__ == "__main__":
     import pdb
+    print("Example")
     w = tf.Variable(tf.random_normal([3,3,16,32]))
     w1 = tf.Variable(tf.random_normal([3,3,32,48]))
     b = tf.Variable(tf.constant(1.0,shape=[32]))
