@@ -1,4 +1,6 @@
 from __future__ import print_function
+import matplotlib.pyplot as plt
+import matplotlib.cm as cm
 import tensorflow.contrib.layers as layers
 import tensorflow as tf
 import sys
@@ -68,7 +70,7 @@ def conv_net(x, weights, biases, dropout):
     max_outputs = 6 
     # Reshape input picture
     with tf.name_scope("input"):
-        x = tf.reshape(x, shape=[-1, 28, 28, 1])
+
         tf.summary.image("x",x,max_outputs=max_outputs)
 
     # Convolution Layer
@@ -78,7 +80,7 @@ def conv_net(x, weights, biases, dropout):
 
         with tf.name_scope("f1"):
             for i in xrange(10):
-                f = tf.split(3,16,conv1)[i]
+                f = tf.split(3,32,conv1)[i]
                 #w1 = tf.split(3,32,weights["wc1"])[0]
                 tf.summary.image("f1_{0}".format(i),f,max_outputs=max_outputs)
                 #tf.image_summary("w1",w1)
@@ -136,6 +138,9 @@ if __name__ == "__main__":
     training_iters = 60000
     batch_size = 128
     display_step = 10
+    flags = tf.app.flags
+    FLAGS = flags.FLAGS
+    flags.DEFINE_integer("load",0,"Load model?")
 
     # Network Parameters
     n_input = 784 # MNIST data input (img shape: 28*28)
@@ -147,9 +152,10 @@ if __name__ == "__main__":
     # Construct model
     for weightInit in ["uniform","normal","lecun_uniform","glorot_uniform","glorot_normal","zeros"][:1]:
         tf.reset_default_graph()
+        fs = 9
         weights = {
-            'wc1': W([5, 5, 1, 16],weightInit),
-            'wc2': W([5, 5, 16, 16],weightInit),
+            'wc1': W([fs, fs, 1, 32],weightInit),
+            'wc2': W([5, 5, 32, 16],weightInit),
             'wc3': W([5, 5, 16, 16],weightInit),
             'wc4': W([3, 3, 16, 16],weightInit),
             'wd1': W([2*2*16, 32],weightInit),
@@ -157,7 +163,7 @@ if __name__ == "__main__":
         }
 
         biases = {
-            'bc1': tf.Variable(tf.constant(0.0,shape=[16])),
+            'bc1': tf.Variable(tf.constant(0.0,shape=[32])),
             'bc2': tf.Variable(tf.constant(0.0,shape=[16])),
             'bc3': tf.Variable(tf.constant(0.0,shape=[16])),
             'bc4': tf.Variable(tf.constant(0.0,shape=[16])),
@@ -165,11 +171,12 @@ if __name__ == "__main__":
             'out': tf.Variable(tf.constant(0.0,shape=[n_classes]))
         }
         x = tf.placeholder(tf.float32, [None, n_input])
+        xRe = tf.reshape(x, shape=[-1, 28, 28, 1])
         y = tf.placeholder(tf.float32, [None, n_classes])
         keep_prob = tf.placeholder(tf.float32) #dropout (keep probability)
         training = tf.placeholder(tf.bool)
 
-        pred = conv_net(x, weights, biases, keep_prob)
+        pred = conv_net(xRe, weights, biases, keep_prob)
         cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(pred, y))
         optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
 
@@ -180,13 +187,47 @@ if __name__ == "__main__":
 
         merged = tf.summary.merge_all()
         init = tf.initialize_all_variables()
+        saver = tf.train.Saver()
         path = "conv/"
+        folder = "{0}{1}/".format(path,weightInit)
+        weightsPath = folder + "weights.tf"
+        def getWeights():
+            return [v.value().eval() for v in tf.trainable_variables()]
+        load = 0
+        def show(im):
+            plt.imshow(im.squeeze(),cmap = cm.gray,interpolation="none")
 
+        weight = tf.placeholder(tf.float32, [9,9,1,1])
+        conv1 = tf.nn.conv2d(xRe, weight, strides=[1, 1, 1, 1], padding='SAME')
         with tf.Session() as sess:
+            if FLAGS.load == 1:
+                print("Loading from {0}.".format(weightsPath))
+                batch_x, batch_y = mnist.train.next_batch(10)
+                batch_x = batch_x[[5]]
+                saver.restore(sess,weightsPath)
+                weights = getWeights()
+                layer = weights[0]
+                f = layer.shape[-1]
+
+                for i in xrange(f):
+                    w1 = layer[:,:,:,[i]]
+                    im, out = sess.run([xRe,conv1],feed_dict={x:batch_x,weight:w1})
+                    plt.subplot(131)
+                    show(im)
+                    plt.subplot(132)
+                    show(out)
+                    plt.subplot(133)
+                    show(w1)
+                    plt.savefig("{0}/{1}.jpg".format(folder,i))
+                    plt.close()
+
+
+            else:
+                sess.run(init)
 
             #train_writer = tf.summary.FileWriter('{0}/{1}/train'.format(path,weightInit),sess.graph)
             test_writer = tf.summary.FileWriter('{0}/{1}/test'.format(path,weightInit),sess.graph)
-            sess.run(init)
+
             step = 1
             # Keep training until reach max iterations
             while step * batch_size < training_iters:
@@ -206,6 +247,8 @@ if __name__ == "__main__":
                 step += 1
 
             print("Optimization Finished!")
+            saver.save(sess,weightsPath)
+
 
         # Calculate accuracy for 256 mnist test images
 
