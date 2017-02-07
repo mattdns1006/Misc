@@ -1,20 +1,10 @@
 from tensorflow.contrib.layers.python.layers import batch_norm as batch_norm
 import tensorflow as tf
 
-def bn(x,is_training,name,decay=0.9):
-    bn_train = batch_norm(x, decay=decay, center=True, scale=True,
-    updates_collections=None,
-    is_training=True,
-    reuse=None, 
-    trainable=True,
-    scope=name)
-    bn_inference = batch_norm(x, decay=1.00, center=True, scale=True,
-    updates_collections=None,
-    is_training=False,
-    reuse=True, 
-    trainable=False,
-    scope=name)
-    z = tf.cond(is_training, lambda: bn_train, lambda: bn_inference)
+def bn(x,is_training,name,decay=0.99):
+    bn_train = batch_norm(x, decay=decay, center=True, scale=True, updates_collections=None, is_training=True, reuse=None, trainable=True, scope=name)
+    bn_infer = batch_norm(x, decay=0.9999, center=True, scale=True, updates_collections=None, is_training=False, reuse=True, trainable=True, scope=name)
+    z = tf.cond(is_training, lambda: bn_train, lambda: bn_infer)
     return z
 
 
