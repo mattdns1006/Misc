@@ -1,12 +1,12 @@
 import tensorflow as tf
 
-def weightVar(shape,stddev=0.1,name="none"):
+def weightVar(shape,stddev=0.01):
     initial = tf.truncated_normal(shape, stddev=stddev)
-    return tf.Variable(initial,name=name)
+    return tf.Variable(initial)
 
-def biasVar(shape,name="name"):
+def biasVar(shape):
     initial = tf.constant(0.1, shape=shape)
-    return tf.Variable(initial,name=name)
+    return tf.Variable(initial)
 
 def conv2d(x, W):
     return tf.nn.conv2d(x, W, strides=[1, 1, 1, 1], padding='SAME')

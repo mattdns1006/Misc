@@ -17,7 +17,7 @@ if __name__ == "__main__":
     os.chdir("/home/msmith/kaggle/whale/identifier")
 
     # Decode csv
-    csvPath = "/home/msmith/kaggle/whale/trainCV.csv"
+    csvPath = "/home/msmith/kaggle/whale/identifier/loadDataTest.csv"
     df = pd.read_csv(csvPath)
 
     #csvPath = "/home/msmith/kaggle/whale/identifier/trainCV10.csv"
@@ -39,7 +39,7 @@ if __name__ == "__main__":
     image_bytes = tf.read_file(path)
     decoded_img = tf.image.decode_jpeg(image_bytes)
     #imageQ = tf.FIFOQueue(128,[tf.uint8,tf.float32,tf.string])
-    imageQ = tf.FIFOQueue(128,[tf.uint8,tf.float32], shapes = [[600,800,3],[1]])
+    imageQ = tf.FIFOQueue(128,[tf.uint8,tf.float32], shapes = [[500,500,3],[1]])
     enQ_op = imageQ.enqueue([decoded_img,label,path])
 
     NUM_THREADS = 16
@@ -51,21 +51,31 @@ if __name__ == "__main__":
             )
 
     tf.train.add_queue_runner(Q)
-    bS = 4
+    bS = 2
     x,y = imageQ.dequeue_many(bS)
-    #x,y,path = imageQ.dequeue()
-
+    print(df)
+    import time
 
     with tf.Session() as sess:
         coord = tf.train.Coordinator()
         threads = tf.train.start_queue_runners(coord=coord)
 
         count = 0
-        ipdb.set_trace()
-        while not coord.should_stop():
-            x_, y_ = sess.run([x,y])
-            count += x_.shape[0]
-            print(count)
+        try:
+            while not coord.should_stop():
+
+                if coord.should_stop():
+                    break
+                x_, y_ = sess.run([x,y])
+                count += x_.shape[0]
+                print(count)
+        except tf.errors.OutOfRangeError, e:
+            print("Here")
+            coord.request_stop(e)
+        finally:
+            print("Here2")
+            coord.request_stop()
+            coord.join(threads)
             #show(x_,y_)
 
 
