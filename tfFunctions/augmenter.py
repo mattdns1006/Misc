@@ -6,11 +6,11 @@ import matplotlib.pyplot as plt
 def crop(img,outDim):
     return tf.random_crop(img,outDim)
 
-def brightness(img):
-    return tf.image.random_brightness(img,max_delta=30)
+def brightness(img,max_delta=30):
+    return tf.image.random_brightness(img,max_delta=max_delta)
 
-def contrast(img):
-    return tf.image.random_contrast(img,lower=0.7,upper=1.3)
+def contrast(img,lower=0.7,upper=1.3):
+    return tf.image.random_contrast(img,lower=lower,upper=upper)
 
 if __name__ == "__main__":
     def show(img):
